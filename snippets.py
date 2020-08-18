@@ -30,6 +30,7 @@ import util
 # This allows mocking in a different day, for testing.
 _TODAY_FN = datetime.datetime.now
 
+_ALLOWED = ['mr.mohammed@gmail.com', 'sjmartin20@gmail.com']
 
 jinja2.default_config['template_path'] = os.path.join(
     os.path.dirname(__file__),
@@ -53,7 +54,7 @@ def _current_user_email():
     return users.get_current_user().email().lower()
 
 
-def _get_or_create_user(email, put_new_user=True):
+def _get_or_create_user(email, redirector=None, put_new_user=True):
     """Return the user object with the given email, creating it if needed.
 
     Considers the permissions scope of the currently logged in web user,
@@ -63,6 +64,10 @@ def _get_or_create_user(email, put_new_user=True):
     NOTE: Any access that causes _get_or_create_user() is an access that
     indicates the user is active again, so they are "unhidden" in the db.
     """
+    if email not in _ALLOWED:
+        raise RuntimeError('Permission denied: '
+                           'This app is not allowed for %s.' % email)
+
     user = util.get_user(email)
     if user:
         if user.is_hidden:
@@ -82,7 +87,8 @@ def _get_or_create_user(email, put_new_user=True):
         except ValueError:
             # TODO(csilvers): do this instead:
             #                 /admin/settings?redirect_to=user_setting
-            return None
+            redirector.redirect('/admin/settings?redirect_to=user_setting')
+            return
 
         domain = email.split('@')[-1]
         allowed_domains = app_settings.domains
@@ -342,6 +348,8 @@ class UpdateSnippet(BaseHandler):
         # When adding a snippet, make sure we create a user record for
         # that email as well, if it doesn't already exist.
         user = _get_or_create_user(email)
+        if user is None:
+            return
 
         # Store user's display_name in snippet so that if a user is later
         # deleted, we could still show his / her display_name.
@@ -423,7 +431,7 @@ class Settings(BaseHandler):
             raise RuntimeError('You do not have permissions to view user'
                                ' settings for %s' % user_email)
         # We won't put() the new user until the settings are saved.
-        user = _get_or_create_user(user_email, put_new_user=False)
+        user = _get_or_create_user(user_email, redirector=self, put_new_user=False)
         try:
             user.key()
             is_new_user = False

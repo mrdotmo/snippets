@@ -172,10 +172,10 @@ Your app will then be available at `mycompany-snippets.appspot.com`.
 If you get an error like 'gcloud: not found', it means you need to
 add the appengine-SDK location to your `$PATH`.
 
-You may also need to manually trigger an index build for datastore
+You need to manually trigger an index build for datastore
 
 ```
-gcloud datastore create-indexes index.yaml
+gcloud datastore indexes createindex.yaml
 ```
 (try this if you're seeing 500 errors)
 
